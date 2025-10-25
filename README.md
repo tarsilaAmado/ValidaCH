@@ -11,9 +11,6 @@ O objetivo central é fornecer aos alunos uma forma rápida de submeter suas hor
 | Nome do Integrante | Papel no Projeto | Contato| 
 | :--- | :--- | :--- | 
 | **\[João Victor Rocha Fernandes\]** | Desenvolvimento Fullstack | \[https://github.com/naoehcleber\] |
-| ----- | ----- | ----- |
 | **\[Lucas Ribeiro D´Azevedo\]** | Desenvolvimento Fullstack | \[https://github.com/luconnes\] |
-| ----- | ----- | ----- |
 | **\[Tarsila Amado Alves de Brito\]** | Desenvolvimento Fullstack | \[https://github.com/tarsilaAmado\] |
-| ----- | ----- | ----- |
 | **\[Vinicus Mergulhão Teti\]** | Desenvolvimento Fullstack | \[https://github.com/Vinimtt\] |
