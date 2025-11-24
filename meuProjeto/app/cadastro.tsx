@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import Parse from 'parse/react-native'; // Importe o Parse
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Button } from 'react-native';
+import Parse from 'parse/react-native';
 import { router } from 'expo-router';
 
 export default function Cadastro() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  // Adicionei um estado de carregando para evitar múltiplos cliques
   const [loading, setLoading] = useState(false); 
 
   const handleCadastro = async () => {
@@ -18,18 +17,16 @@ export default function Cadastro() {
     setLoading(true);
 
     try {
-      // Cria um novo usuário do Parse
       const user = new Parse.User();
-      user.set('username', email); // Usamos o email como username
+      user.set('username', email);
       user.set('email', email);
       user.set('password', senha);
 
       await user.signUp();
 
       Alert.alert('Sucesso', 'Conta criada! Faça login para continuar.');
-      router.back(); // Volta para o login
+      router.back(); 
     } catch (error: any) {
-      // Mostra o erro (ex: email já existe)
       Alert.alert('Erro no cadastro', error.message);
     } finally {
       setLoading(false);
@@ -56,6 +53,11 @@ export default function Cadastro() {
         secureTextEntry 
       />
 
+      <TouchableOpacity style={styles.button_voltar} onPress={() => router.back()}>
+      {}
+        <Text style= {styles.buttonText}>Voltar</Text> 
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.button} onPress={handleCadastro} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? "Criando..." : "Cadastrar"}</Text>
       </TouchableOpacity>
@@ -63,11 +65,11 @@ export default function Cadastro() {
   );
 }
 
-// ... Mantenha seus estilos (styles) aqui ...
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center' },
   input: { height: 50, borderColor: '#ccc', borderWidth: 1, borderRadius: 8, marginBottom: 15, paddingHorizontal: 10 },
-  button: { backgroundColor: '#28a745', padding: 15, borderRadius: 8, alignItems: 'center' },
+  button: { backgroundColor: '#5D4037', padding: 15, borderRadius: 8, alignItems: 'center' },
+  button_voltar: {backgroundColor: '#5D4037', position: 'absolute', top: 50, left: 20, zIndex: 15, padding: 10, borderRadius: 8 },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });

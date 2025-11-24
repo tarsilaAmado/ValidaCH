@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView 
 import * as DocumentPicker from 'expo-document-picker';
 import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons'; // Para ícones
+import Parse from 'parse/react-native';
 
 export default function EnviarCertificado() {
   const [titulo, setTitulo] = useState('');
