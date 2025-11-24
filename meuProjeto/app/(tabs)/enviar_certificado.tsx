@@ -1,22 +1,26 @@
-// app/enviar-certificado.tsx
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { router, Stack } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons'; // Para ícones
+import { Ionicons } from '@expo/vector-icons'; 
 import Parse from 'parse/react-native';
+
+// Definição de tipo para o arquivo
+type DocumentAsset = DocumentPicker.DocumentPickerAsset | null;
 
 export default function EnviarCertificado() {
   const [titulo, setTitulo] = useState('');
   const [horas, setHoras] = useState('');
-  const [arquivo, setArquivo] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [arquivo, setArquivo] = useState<DocumentAsset>(null);
+  // Estado para controlar o feedback visual de carregamento
+  const [enviando, setEnviando] = useState(false); 
 
   // Função para abrir o gerenciador de arquivos do celular
   const selecionarArquivo = async () => {
+    if (enviando) return; // Impede seleção enquanto envia
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'], // Aceita PDF e Imagens
-        copyToCacheDirectory: true,
       });
 
       if (!result.canceled) {
@@ -27,23 +31,66 @@ export default function EnviarCertificado() {
     }
   };
 
-  const enviarFormulario = () => {
+  const enviarFormulario = async () => {
+    if (enviando) return;
+
     if (!titulo || !horas || !arquivo) {
       Alert.alert('Atenção', 'Preencha todos os campos e anexe o certificado.');
       return;
     }
 
-    // AQUI ENTRARIA A LÓGICA DE ENVIO PARA O BACKEND (Firebase, API, etc)
-    console.log("Enviando:", { titulo, horas, arquivo });
+    // CORREÇÃO: Usar Parse.User.currentAsync() para buscar o usuário de forma assíncrona
+    // O nome correto da função no SDK do Parse é 'currentAsync', não 'currentUserAsync'.
+    const currentUser = await Parse.User.currentAsync();
+    
+    // É crucial que o usuário esteja logado para associar o certificado
+    if (!currentUser) {
+      Alert.alert('Erro', 'Você precisa estar logado para enviar certificados. Redirecionando para login.');
+      router.replace('/login');
+      return;
+    }
 
-    Alert.alert('Sucesso', 'Certificado enviado para validação!', [
-      { text: 'OK', onPress: () => router.back() } // Volta para a Home
-    ]);
+    setEnviando(true); // Começa o carregamento
+    
+    try {
+      // 1. UPLOAD DO ARQUIVO PARA O BACK4APP (Parse.File)
+      const parseFile = new Parse.File(arquivo.name, { uri: arquivo.uri, type: arquivo.mimeType! });
+      await parseFile.save();
+
+      // 2. CRIAÇÃO E SALVAMENTO DO OBJETO 'SUBMISSAO' 
+      const Submissao = Parse.Object.extend('Submissao');
+      const novaSubmissao = new Submissao();
+
+      // Mapeamento dos campos do App para as colunas do BD
+      novaSubmissao.set('tituloEvento', titulo); 
+      novaSubmissao.set('cargaHoraria', parseInt(horas, 10)); 
+      novaSubmissao.set('certificadoBase', parseFile); 
+      novaSubmissao.set('aluno', currentUser); // Usa o currentUser obtido de forma assíncrona
+
+      await novaSubmissao.save();
+
+      // Feedback de Sucesso APÓS o salvamento
+      Alert.alert('Sucesso', 'Certificado enviado para validação!', [
+        { text: 'OK', onPress: () => router.back() } 
+      ]);
+
+      // Limpar formulário
+      setTitulo('');
+      setHoras('');
+      setArquivo(null);
+
+    } catch (error: any) {
+      console.error('Erro ao enviar certificado:', error);
+      // Mantenha a mensagem de erro informativa para o usuário
+      Alert.alert('Erro no Envio', `Ocorreu um erro ao salvar: ${error.message}. Verifique o console para mais detalhes.`);
+    } finally {
+      setEnviando(false); // Termina o carregamento
+    }
   };
 
   return (
     <>
-      {/* Configura o topo da tela */}
+      {/* Configura o título da barra de navegação */}
       <Stack.Screen options={{ title: 'Novo Certificado', headerTintColor: '#5D4037' }} />
 
       <ScrollView contentContainerStyle={styles.container}>
@@ -53,6 +100,7 @@ export default function EnviarCertificado() {
           placeholder="Ex: Workshop de React Native"
           value={titulo}
           onChangeText={setTitulo}
+          editable={!enviando}
         />
 
         <Text style={styles.label}>Carga Horária (Horas)</Text>
@@ -62,12 +110,17 @@ export default function EnviarCertificado() {
           value={horas}
           onChangeText={setHoras}
           keyboardType="numeric"
+          editable={!enviando}
         />
 
         <Text style={styles.label}>Anexo (PDF ou Imagem)</Text>
         
         {/* Área de Upload */}
-        <TouchableOpacity style={styles.uploadArea} onPress={selecionarArquivo}>
+        <TouchableOpacity 
+          style={styles.uploadArea} 
+          onPress={selecionarArquivo} 
+          disabled={enviando}
+        >
           {arquivo ? (
             <View style={styles.fileInfo}>
               <Ionicons name="document-text" size={32} color="#5D4037" />
@@ -84,42 +137,55 @@ export default function EnviarCertificado() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={enviarFormulario}>
-          <Text style={styles.buttonText}>Enviar para Análise</Text>
+        {/* Botão de Envio (COM FEEDBACK VISUAL) */}
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={enviarFormulario}
+          disabled={enviando}
+        >
+          {enviando ? (
+            // Exibe o spinner enquanto 'enviando' for true
+            <ActivityIndicator color="#FFF" /> 
+          ) : (
+            <Text style={styles.buttonText}>Enviar para Análise</Text>
+          )}
         </TouchableOpacity>
+        
+        {/* Mensagem de status para envio mais longo */}
+        {enviando && <Text style={styles.statusText}>Enviando arquivo e salvando... (Pode demorar)</Text>}
       </ScrollView>
     </>
   );
 }
 
-// Estilos com a paleta Marrom/Bege (ValidaCH)
+// Estilos com a paleta Marrom/Bege
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: '#F5F5F5', // Fundo levemente cinza/off-white
+    backgroundColor: '#F5F5F5',
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#5D4037', // Marrom escuro
+    color: '#5D4037',
     marginBottom: 8,
     marginTop: 10,
   },
   input: {
     backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: '#D7CCC8', // Bege escuro
+    borderColor: '#D7CCC8',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     color: '#333',
   },
   uploadArea: {
-    backgroundColor: '#EFEBE9', // Bege bem claro
+    backgroundColor: '#EFEBE9',
     borderWidth: 2,
-    borderColor: '#8D6E63', // Marrom médio
-    borderStyle: 'dashed', // Borda tracejada
+    borderColor: '#8D6E63',
+    borderStyle: 'dashed',
     borderRadius: 12,
     height: 150,
     justifyContent: 'center',
@@ -142,21 +208,27 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   changeFileText: {
-    color: '#D84315', // Um tom alaranjado para ação secundária
+    color: '#D84315',
     fontSize: 12,
     marginTop: 5,
   },
   button: {
-    backgroundColor: '#5D4037', // Botão Marrom Principal
+    backgroundColor: '#5D4037',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 30,
-    elevation: 3, // Sombra no Android
+    elevation: 3,
   },
   buttonText: {
     color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
   },
+  statusText: {
+    marginTop: 15,
+    textAlign: 'center',
+    color: '#5D4037',
+    fontSize: 14,
+  }
 });
